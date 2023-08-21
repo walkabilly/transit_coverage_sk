@@ -11,6 +11,18 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(rstatix)
 library(kableExtra)
+library(sf)
+library(ggmap)
+library(cowplot)
+library(geojsonsf)
+library(tmap)
+library(cancensus)
+```
+
+```{r, echo= TRUE, results='hide'}
+options(cancensus.api_key = "CensusMapper_159fe4a88e8c934fece317e847beef84")
+options(cancensus.cache_path = 'safe data/cache')
+options(cancensus.cache_path = "/Users/dlf545/Desktop/cancensus") ##.rda files will be stored here
 ```
 
 ## Developing Saskatoon or Saskatchewan Transit Coverage 
@@ -29,17 +41,19 @@ transit_peak$acs_idx_emp <- as.numeric(transit_peak$acs_idx_emp)
 transit_peak$acs_idx_srf <- as.numeric(transit_peak$acs_idx_srf)
 transit_peak$acs_idx_psef <- as.numeric(transit_peak$acs_idx_psef)
 transit_peak$acs_idx_ef <- as.numeric(transit_peak$acs_idx_ef)
+transit_peak$acs_idx_caf <- as.numeric(transit_peak$acs_idx_caf)
 transit_peak$acs_lvl_gs.1 <- as.numeric(transit_peak$acs_lvl_gs.1)
 transit_peak$acs_lvl_gs.3 <- as.numeric(transit_peak$acs_lvl_gs.3)
 transit_peak$acs_lvl_gs.5 <- as.numeric(transit_peak$acs_lvl_gs.5)
-
 
 transit_peak <- transit_peak %>%
                         group_by(CMANAME) %>%
                           mutate(n = n())
                   
-
 transit_peak <- filter(transit_peak, n >= 1000)
+
+transit_peak <- transit_peak %>% 
+                  drop_na(CMANAME)
 ```
 
 The dataset fields are as follows
@@ -70,14 +84,53 @@ summary(transit_peak$acs_idx_hf)
 
 transit_peak_city <- transit_peak %>%
                         group_by(CMANAME) %>%
-                          summarize(acs_idx_hf = mean(acs_idx_hf), na.rm = TRUE,
-                                    acs_idx_hf = mean(acs_idx_hf), na.rm = TRUE,
+                          summarize(acs_idx_hf = mean(acs_idx_hf, na.rm = TRUE),
+                                    acs_idx_emp = mean(acs_idx_emp, na.rm = TRUE),
+                                    acs_idx_srf = mean(acs_idx_srf, na.rm = TRUE),
+                                    acs_idx_psef = mean(acs_idx_psef, na.rm = TRUE),
+                                    acs_idx_ef = mean(acs_idx_ef, na.rm = TRUE),
+                                    acs_idx_caf = mean(acs_idx_caf, na.rm = TRUE),
+                                    acs_lvl_gs.1 = mean(acs_lvl_gs.1, na.rm = TRUE),
+                                    acs_lvl_gs.3 = mean(acs_lvl_gs.3, na.rm = TRUE),
+                                    acs_lvl_gs.5 = mean(acs_lvl_gs.5, na.rm = TRUE),
+                                    freq_da = n()
                           )
 
-transit_peak_city <- arrange(transit_peak_city, acs_idx_hf)
+transit_peak_city <- arrange(transit_peak_city, desc(acs_idx_hf))
 
 kable(transit_peak_city, "markdown")
+
+ggplot(transit_peak, aes(acs_idx_hf)) +
+        geom_histogram() +
+        facet_wrap(~ CMANAME)
 ```
+
+## Creating quintiles of each metric for each city
+
+```{r}
+transit_peak <- transit_peak %>%
+                        group_by(CMANAME) %>%
+                          mutate(acs_idx_hf_n5 = ntile(acs_idx_hf, 5))
+```
+
+## Saskatoon map for fun
+
+```{r}
+sk_cma <- get_census(dataset='CA21', regions=list(CMA="47725"),
+                          level='DB', use_cache = TRUE, geo_format = "sf")
+
+sk_cma$GeoUID <- as.numeric(sk_cma$GeoUID)
+sk_cma_transit <- left_join(sk_cma, transit_peak, by = c("GeoUID" = "DBUID"))
+
+
+sk_int_plot <- ggplot(data = sk_cma_transit) + 
+                  geom_sf(aes(fill = acs_idx_hf)) 
+plot(sk_int_plot)
+
+ggsave("sk_int_plot.jpg", dpi = 200, height = 4, width = 6)
+```
+
+
 
 
 
