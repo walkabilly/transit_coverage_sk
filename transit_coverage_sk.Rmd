@@ -80,8 +80,6 @@ The dataset fields are as follows
 ## Creating average values per city
 
 ```{r}
-summary(transit_peak$acs_idx_hf)
-
 transit_peak_city <- transit_peak %>%
                         group_by(CMANAME) %>%
                           summarize(acs_idx_hf = mean(acs_idx_hf, na.rm = TRUE),
@@ -96,7 +94,7 @@ transit_peak_city <- transit_peak %>%
                                     freq_da = n()
                           )
 
-transit_peak_city <- arrange(transit_peak_city, desc(acs_idx_hf))
+transit_peak_city <- arrange(transit_peak_city, desc(acs_lvl_gs.1))
 
 kable(transit_peak_city, "markdown")
 
