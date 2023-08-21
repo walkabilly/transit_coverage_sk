@@ -1,0 +1,83 @@
+---
+title: "transit_coverage_sk"
+date: "2023-08-21"
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rstatix)
+library(kableExtra)
+```
+
+## Developing Saskatoon or Saskatchewan Transit Coverage 
+
+We are using the [Spatial Access Measures](https://www150.statcan.gc.ca/n1/pub/27-26-0001/272600012023001-eng.htm) developed by Statistics Canada. From the website: 
+
+> There are seven types of amenity categories within the Spatial Access Measures: primary and secondary educational facilities (EFs), postsecondary educational facilities (PSEFs), health care facilities (HFs), places of employment (EMPs), grocery stores (GSs), cultural and arts facilities (CAFs), and sports and recreational facilities (SRFs). For each amenity, there are four variants based on the transportation mode: access via public transit during peak hours, access via public transit during off-peak hours, access via cycling and access via walking.
+
+## Data 
+
+```{r}
+transit_peak <- read_csv("acs_public_transit_peak.csv", name_repair = "universal")
+
+transit_peak$acs_idx_hf <- as.numeric(transit_peak$acs_idx_hf)
+transit_peak$acs_idx_emp <- as.numeric(transit_peak$acs_idx_emp)
+transit_peak$acs_idx_srf <- as.numeric(transit_peak$acs_idx_srf)
+transit_peak$acs_idx_psef <- as.numeric(transit_peak$acs_idx_psef)
+transit_peak$acs_idx_ef <- as.numeric(transit_peak$acs_idx_ef)
+transit_peak$acs_lvl_gs.1 <- as.numeric(transit_peak$acs_lvl_gs.1)
+transit_peak$acs_lvl_gs.3 <- as.numeric(transit_peak$acs_lvl_gs.3)
+transit_peak$acs_lvl_gs.5 <- as.numeric(transit_peak$acs_lvl_gs.5)
+
+
+transit_peak <- transit_peak %>%
+                        group_by(CMANAME) %>%
+                          mutate(n = n())
+                  
+
+transit_peak <- filter(transit_peak, n >= 1000)
+```
+
+The dataset fields are as follows
+
+| Field name      | Data type | Description                                                                                                            |
+|-----------------|-----------|------------------------------------------------------------------------------------------------------------------------|
+| DBUID           | int64     | Uniquely identifies a dissemination block (composed of the 2-digit province/territory unique identifier followed by the 2-digit census division code, the 4-digit dissemination area code and the 3-digit dissemination block code). |
+| CSDUID          | int64     | Uniquely identifies a census subdivision (composed of the 2-digit province/territory unique identifier followed by the 2-digit census division code and the 3-digit census subdivision code). |
+| CSDNAME         | object    | Census subdivision name.                                                                                              |
+| CMAUID          | int64     | Uniquely identifies a census metropolitan area/census agglomeration.                                                  |
+| CMANAME         | object    | Census metropolitan area or census agglomeration name.                                                               |
+| PRUID           | int64     | Uniquely identifies a province or territory.                                                                         |
+| PRCODE          | object    | Province or territory code.                                                                                          |
+| acs_idx_hf      | float64   | Normalised value of a dissemination block's access to health care facilities.                                        |
+| acs_idx_emp     | float64   | Normalised value of a dissemination block's access to employment.                                                    |
+| acs_idx_srf     | float64   | Normalised value of a dissemination block's access to sports and recreation facilities.                              |
+| acs_idx_psef    | float64   | Normalised value of a dissemination block's access to post-secondary education facilities.                          |
+| acs_idx_ef      | float64   | Normalised value of a dissemination block's access to primary and secondary education facilities.                   |
+| acs_idx_caf     | float64   | Normalised value of a dissemination block's access to cultural and arts facilities.                                  |
+| acs_lvl_gs-1    | float64   | Time in minutes to reach the closest grocery store.                                                                 |
+| acs_lvl_gs-3    | float64   | Time in minutes to reach the 3rd closest grocery store.                                                             |
+| acs_lvl_gs-5    | float64   | Time in minutes to reach the 5th closest grocery store.                                                             |
+
+## Creating average values per city
+
+```{r}
+summary(transit_peak$acs_idx_hf)
+
+transit_peak_city <- transit_peak %>%
+                        group_by(CMANAME) %>%
+                          summarize(acs_idx_hf = mean(acs_idx_hf), na.rm = TRUE,
+                                    acs_idx_hf = mean(acs_idx_hf), na.rm = TRUE,
+                          )
+
+transit_peak_city <- arrange(transit_peak_city, acs_idx_hf)
+
+kable(transit_peak_city, "markdown")
+```
+
+
+
